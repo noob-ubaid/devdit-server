@@ -1,4 +1,4 @@
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const app = express();
 require("dotenv").config();
@@ -26,6 +26,7 @@ async function run() {
   try {
     const dataBase = client.db("Forum");
     const usersCollection = dataBase.collection("users");
+    const postsCollection = dataBase.collection("posts");
     app.get("/users/:email", async (req, res) => {
       const query = { email: req.params.email };
       const user = await usersCollection.findOne(query);
@@ -37,21 +38,18 @@ async function run() {
       res.send(result);
     })
     app.get("/profile/:email", async (req, res) => {
-      const query = {email : req.params.email}
-      const result = await postsCollection.find(query).limit(3).toArray();
+      const query = { email: req.params.email };
+      const result = await postsCollection
+        .find(query)
+        .sort({ createdAt: -1 }) 
+        .limit(3)
+        .toArray();
       res.send(result);
-    })
-
-
+    });
 
     app.post("/add-post", async (req, res) => {
       const data = req.body;
       const result = await postsCollection.insertOne(data);
-      res.send(result);
-    })
-   app.get("/profile/:email", async (req, res) => {
-      const query = {email : req.params.email}
-      const result = await postsCollection.find(query).limit(3).toArray();
       res.send(result);
     })
 
@@ -69,6 +67,13 @@ async function run() {
       const result = await usersCollection.insertOne(data);
       res.send(result);
     });
+
+    app.delete("/post/:id", async (req,res)=>{
+      const id = req.params.id
+      const query = {_id : new ObjectId(id)}
+      const result = await postsCollection.deleteOne(query)
+      res.send(result)
+    })
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
