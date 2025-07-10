@@ -24,6 +24,12 @@ async function run() {
   try {
     const dataBase = client.db("Forum");
     const usersCollection = dataBase.collection("users");
+    app.get("/users/:email", async (req, res) => {
+      const query = { email: req.params.email }
+      const user = await usersCollection.findOne(query);
+      res.send(user);
+    })
+
 
     app.post("/user", async (req, res) => {
       const data = req.body;
