@@ -24,7 +24,20 @@ async function run() {
   try {
     const dataBase = client.db("Forum");
     const usersCollection = dataBase.collection("users");
-   
+
+    app.post("/user", async (req, res) => {
+      const data = req.body;
+      const query = { email: data.email };
+      const alreadyExists = await usersCollection.findOne(query);
+      if (!!alreadyExists) {
+        const result = await usersCollection.updateOne(query, {
+          $set: { lastLoggedIn: new Date().toISOString() },
+        });
+        return res.send(result)
+      }
+      const result = await usersCollection.insertOne(data);
+      res.send(result);
+    });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
