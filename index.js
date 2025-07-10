@@ -36,6 +36,12 @@ async function run() {
       const result = await postsCollection.find(query).toArray();
       res.send(result);
     })
+    app.get("/profile/:email", async (req, res) => {
+      const query = {email : req.params.email}
+      const result = await postsCollection.find(query).limit(3).toArray();
+      res.send(result);
+    })
+
 
 
     app.post("/add-post", async (req, res) => {
@@ -43,6 +49,12 @@ async function run() {
       const result = await postsCollection.insertOne(data);
       res.send(result);
     })
+   app.get("/profile/:email", async (req, res) => {
+      const query = {email : req.params.email}
+      const result = await postsCollection.find(query).limit(3).toArray();
+      res.send(result);
+    })
+
 
     app.post("/user", async (req, res) => {
       const data = req.body;
