@@ -27,6 +27,19 @@ async function run() {
     const dataBase = client.db("Forum");
     const usersCollection = dataBase.collection("users");
     const postsCollection = dataBase.collection("posts");
+    app.get("/users", async (req, res) => {
+      const user = await usersCollection.find().toArray();
+      res.send(user);
+    });
+    app.get("/search", async (req, res) => {
+      const search = req.query.search;
+      let query = {};
+      if (search) {
+        query = { name: { $regex: search, $options: "i" } };
+      }
+      const users = await usersCollection.find(query).toArray();
+      res.send(users);
+    });
     app.get("/users/:email", async (req, res) => {
       const query = { email: req.params.email };
       const user = await usersCollection.findOne(query);
