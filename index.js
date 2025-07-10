@@ -6,10 +6,12 @@ const port = process.env.PORT || 3000;
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
-app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@ubaid-database.njfi7n5.mongodb.net/?retryWrites=true&w=majority&appName=Ubaid-Database`;
@@ -25,11 +27,16 @@ async function run() {
     const dataBase = client.db("Forum");
     const usersCollection = dataBase.collection("users");
     app.get("/users/:email", async (req, res) => {
-      const query = { email: req.params.email }
+      const query = { email: req.params.email };
       const user = await usersCollection.findOne(query);
       res.send(user);
-    })
+    });
 
+    app.post("/add-post", async (req, res) => {
+      const data = req.body;
+      const result = await postsCollection.insertOne(data);
+      res.send(result);
+    })
 
     app.post("/user", async (req, res) => {
       const data = req.body;
@@ -39,11 +46,11 @@ async function run() {
         const result = await usersCollection.updateOne(query, {
           $set: { lastLoggedIn: new Date().toISOString() },
         });
-        return res.send(result)
+        return res.send(result);
       }
       const result = await usersCollection.insertOne(data);
       res.send(result);
-    });
+    });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
