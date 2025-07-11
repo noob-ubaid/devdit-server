@@ -28,10 +28,6 @@ async function run() {
     const usersCollection = dataBase.collection("users");
     const postsCollection = dataBase.collection("posts");
     app.get("/users", async (req, res) => {
-      const user = await usersCollection.find().toArray();
-      res.send(user);
-    });
-    app.get("/search", async (req, res) => {
       const search = req.query.search;
       let query = {};
       if (search) {
@@ -80,6 +76,17 @@ async function run() {
       const result = await usersCollection.insertOne(data);
       res.send(result);
     });
+    app.patch("/makeAdmin/:id", async (req,res)=> {
+      const id = req.params.id
+      const query = {_id : new ObjectId(id)}
+      const updateDoc = {
+        $set : {
+          role : 'admin'
+        }
+      }
+      const result = await usersCollection.updateOne(query,updateDoc)
+      res.send(result)
+    })
 
     app.delete("/post/:id", async (req,res)=>{
       const id = req.params.id
