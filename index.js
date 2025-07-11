@@ -27,6 +27,7 @@ async function run() {
     const dataBase = client.db("Forum");
     const usersCollection = dataBase.collection("users");
     const postsCollection = dataBase.collection("posts");
+    const announcementCollection = dataBase.collection("announcement");
     //? manage users 
     app.get("/users", async (req, res) => {
       const search = req.query.search;
@@ -63,6 +64,12 @@ async function run() {
     app.post("/add-post", async (req, res) => {
       const data = req.body;
       const result = await postsCollection.insertOne(data);
+      res.send(result);
+    })
+    //? make announcement 
+    app.post("/announcement", async (req, res) => {
+      const data = req.body;
+      const result = await announcementCollection.insertOne(data);
       res.send(result);
     })
 
