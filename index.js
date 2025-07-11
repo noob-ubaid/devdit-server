@@ -27,6 +27,7 @@ async function run() {
     const dataBase = client.db("Forum");
     const usersCollection = dataBase.collection("users");
     const postsCollection = dataBase.collection("posts");
+    //? manage users 
     app.get("/users", async (req, res) => {
       const search = req.query.search;
       let query = {};
@@ -36,16 +37,19 @@ async function run() {
       const users = await usersCollection.find(query).toArray();
       res.send(users);
     });
+    //? get user by email 
     app.get("/users/:email", async (req, res) => {
       const query = { email: req.params.email };
       const user = await usersCollection.findOne(query);
       res.send(user);
     });
+    //? get posts via email 
     app.get("/posts/:email", async (req, res) => {
       const query = {email : req.params.email}
       const result = await postsCollection.find(query).toArray();
       res.send(result);
     })
+    //? get recents post for user 
     app.get("/profile/:email", async (req, res) => {
       const query = { email: req.params.email };
       const result = await postsCollection
@@ -55,14 +59,14 @@ async function run() {
         .toArray();
       res.send(result);
     });
-
+    //? create post 
     app.post("/add-post", async (req, res) => {
       const data = req.body;
       const result = await postsCollection.insertOne(data);
       res.send(result);
     })
 
-
+    //? user store in the db 
     app.post("/user", async (req, res) => {
       const data = req.body;
       const query = { email: data.email };
@@ -76,6 +80,7 @@ async function run() {
       const result = await usersCollection.insertOne(data);
       res.send(result);
     });
+    //? make admin 
     app.patch("/makeAdmin/:id", async (req,res)=> {
       const id = req.params.id
       const query = {_id : new ObjectId(id)}
@@ -87,7 +92,19 @@ async function run() {
       const result = await usersCollection.updateOne(query,updateDoc)
       res.send(result)
     })
-
+    // ? cancel admin
+    app.patch("/cancelAdmin/:id", async (req,res)=> {
+      const id = req.params.id
+      const query = {_id : new ObjectId(id)}
+      const updateDoc = {
+        $set : {
+          role : 'user'
+        }
+      }
+      const result = await usersCollection.updateOne(query,updateDoc)
+      res.send(result)
+    })
+    //? delete post 
     app.delete("/post/:id", async (req,res)=>{
       const id = req.params.id
       const query = {_id : new ObjectId(id)}
