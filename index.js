@@ -28,6 +28,7 @@ async function run() {
     const usersCollection = dataBase.collection("users");
     const postsCollection = dataBase.collection("posts");
     const announcementCollection = dataBase.collection("announcement");
+    const tagCollection = dataBase.collection("tags");
     //? manage users 
     app.get("/users", async (req, res) => {
       const search = req.query.search;
@@ -38,10 +39,32 @@ async function run() {
       const users = await usersCollection.find(query).toArray();
       res.send(users);
     });
+    //? get posts 
     app.get("/posts", async (req, res) => {
       const users = await postsCollection.find().toArray();
       res.send(users);
     });
+    app.get("/postsCount", async (req, res) => {
+      const count = await postsCollection.estimatedDocumentCount();
+      res.send(count);
+    });
+    //? get posts for pagination
+    app.get("/pagination", async (req, res) => {
+      const page = parseInt(req.query.page);
+      const size = 5
+      const result = await postsCollection
+        .find()
+        .skip(page * size)
+        .limit(size)
+        .toArray();
+      res.send(result);
+    });
+    //? get tags
+    app.get("/tags", async (req, res) => {
+      const result = await tagCollection.find().toArray();
+      res.send(result);
+    });
+    //? get announcement 
     app.get("/announcement", async (req, res) => {
       const users = await announcementCollection.find().toArray();
       res.send(users);
@@ -63,7 +86,7 @@ async function run() {
       const query = { email: req.params.email };
       const result = await postsCollection
         .find(query)
-        .sort({ createdAt: -1 }) 
+        .sort({ _id: -1 }) 
         .limit(3)
         .toArray();
       res.send(result);
@@ -72,6 +95,12 @@ async function run() {
     app.post("/add-post", async (req, res) => {
       const data = req.body;
       const result = await postsCollection.insertOne(data);
+      res.send(result);
+    })
+    //? tags post 
+    app.post("/tags", async (req, res) => {
+      const data = req.body;
+      const result = await tagCollection.insertOne(data);
       res.send(result);
     })
     //? make announcement 
