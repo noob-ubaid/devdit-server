@@ -45,12 +45,14 @@ async function run() {
       const users = await postsCollection.find().toArray();
       res.send(users);
     });
+    //? get posts by id
     app.get("/posts/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await postsCollection.findOne(query);
       res.send(result);
     });
+    //? get posts count
     app.get("/postsCount", async (req, res) => {
       const count = await postsCollection.estimatedDocumentCount();
       res.send(count);
@@ -71,6 +73,16 @@ async function run() {
     app.get("/tags", async (req, res) => {
       const result = await tagCollection.find().toArray();
       res.send(result);
+    });
+     //? get all comment for a post
+     app.get("/comments/:postId", async (req, res) => {
+      const postId = req.params.postId;
+      const query = { postId: postId };
+      const comments = await commentsCollection
+        .find(query)
+        .sort({ createdAt: -1 })
+        .toArray();
+      res.send(comments);
     });
     //? get announcement
     app.get("/announcement", async (req, res) => {
