@@ -29,7 +29,8 @@ async function run() {
     const postsCollection = dataBase.collection("posts");
     const announcementCollection = dataBase.collection("announcement");
     const tagCollection = dataBase.collection("tags");
-    //? manage users 
+    const commentsCollection = dataBase.collection("comments");
+    //? manage users
     app.get("/users", async (req, res) => {
       const search = req.query.search;
       let query = {};
@@ -39,10 +40,16 @@ async function run() {
       const users = await usersCollection.find(query).toArray();
       res.send(users);
     });
-    //? get posts 
+    //? get posts
     app.get("/posts", async (req, res) => {
       const users = await postsCollection.find().toArray();
       res.send(users);
+    });
+    app.get("/posts/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await postsCollection.findOne(query);
+      res.send(result);
     });
     app.get("/postsCount", async (req, res) => {
       const count = await postsCollection.estimatedDocumentCount();
@@ -51,9 +58,10 @@ async function run() {
     //? get posts for pagination
     app.get("/pagination", async (req, res) => {
       const page = parseInt(req.query.page);
-      const size = 5
+      const size = 5;
       const result = await postsCollection
         .find()
+        .sort({ _id: -1 })
         .skip(page * size)
         .limit(size)
         .toArray();
@@ -64,53 +72,63 @@ async function run() {
       const result = await tagCollection.find().toArray();
       res.send(result);
     });
-    //? get announcement 
+    //? get announcement
     app.get("/announcement", async (req, res) => {
       const users = await announcementCollection.find().toArray();
       res.send(users);
     });
-    //? get user by email 
+    //? get user by email
     app.get("/users/:email", async (req, res) => {
       const query = { email: req.params.email };
       const user = await usersCollection.findOne(query);
       res.send(user);
     });
-    //? get posts via email 
+    //? get posts via email
     app.get("/posts/:email", async (req, res) => {
-      const query = {email : req.params.email}
+      const query = { email: req.params.email };
       const result = await postsCollection.find(query).toArray();
       res.send(result);
-    })
-    //? get recents post for user 
+    });
+    //? get recents post for user
     app.get("/profile/:email", async (req, res) => {
       const query = { email: req.params.email };
       const result = await postsCollection
         .find(query)
-        .sort({ _id: -1 }) 
+        .sort({ _id: -1 })
         .limit(3)
         .toArray();
       res.send(result);
     });
-    //? create post 
+    //? create post
     app.post("/add-post", async (req, res) => {
       const data = req.body;
       const result = await postsCollection.insertOne(data);
       res.send(result);
-    })
-    //? tags post 
+    });
+    //? tags post
     app.post("/tags", async (req, res) => {
       const data = req.body;
       const result = await tagCollection.insertOne(data);
       res.send(result);
-    })
-    //? make announcement 
+    });
+    //? make announcement
     app.post("/announcement", async (req, res) => {
       const data = req.body;
       const result = await announcementCollection.insertOne(data);
       res.send(result);
-    })
+    });
 
-    //? user store in the db 
+    //? make comments
+    app.post("/comments", async (req, res) => {
+      const data = req.body;
+      data.createdAt = new Date();
+      data.isReported = false;
+      data.reportedAt = null;
+      data.feedback = "";
+      const result = await commentsCollection.insertOne(data);
+      res.send(result);
+    });
+    //? user store in the db
     app.post("/user", async (req, res) => {
       const data = req.body;
       const query = { email: data.email };
@@ -124,37 +142,37 @@ async function run() {
       const result = await usersCollection.insertOne(data);
       res.send(result);
     });
-    //? make admin 
-    app.patch("/makeAdmin/:id", async (req,res)=> {
-      const id = req.params.id
-      const query = {_id : new ObjectId(id)}
+    //? make admin
+    app.patch("/makeAdmin/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
       const updateDoc = {
-        $set : {
-          role : 'admin'
-        }
-      }
-      const result = await usersCollection.updateOne(query,updateDoc)
-      res.send(result)
-    })
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await usersCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
     // ? cancel admin
-    app.patch("/cancelAdmin/:id", async (req,res)=> {
-      const id = req.params.id
-      const query = {_id : new ObjectId(id)}
+    app.patch("/cancelAdmin/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
       const updateDoc = {
-        $set : {
-          role : 'user'
-        }
-      }
-      const result = await usersCollection.updateOne(query,updateDoc)
-      res.send(result)
-    })
-    //? delete post 
-    app.delete("/post/:id", async (req,res)=>{
-      const id = req.params.id
-      const query = {_id : new ObjectId(id)}
-      const result = await postsCollection.deleteOne(query)
-      res.send(result)
-    })
+        $set: {
+          role: "user",
+        },
+      };
+      const result = await usersCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
+    //? delete post
+    app.delete("/post/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await postsCollection.deleteOne(query);
+      res.send(result);
+    });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
