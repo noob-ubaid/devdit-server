@@ -45,8 +45,13 @@ async function run() {
       const users = await postsCollection.find().toArray();
       res.send(users);
     });
+    //? get total comments
+    app.get("/allComments", async (req, res) => {
+      const users = await commentsCollection.find().toArray();
+      res.send(users);
+    });
     //? get posts by id
-    app.get("/posts/:id", async (req, res) => {
+    app.get("/post/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await postsCollection.findOne(query);
@@ -79,8 +84,8 @@ async function run() {
       const postId = req.params.postId;
       const query = { postId: postId };
       const comments = await commentsCollection
-        .find(query)
-        .sort({ createdAt: -1 })
+        .find(query)        
+        .sort({ createdAt: 1 })
         .toArray();
       res.send(comments);
     });
@@ -129,7 +134,6 @@ async function run() {
       const result = await announcementCollection.insertOne(data);
       res.send(result);
     });
-
     //? make comments
     app.post("/comments", async (req, res) => {
       const data = req.body;
@@ -164,6 +168,30 @@ async function run() {
         },
       };
       const result = await usersCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
+    // ? upvote
+    app.patch("/like/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $inc: {
+          UpVote: 1,
+        },
+      };
+      const result = await postsCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
+    // ? downvote
+    app.patch("/dislike/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $inc: {
+          DownVote: 1,
+        },
+      };
+      const result = await postsCollection.updateOne(query, updateDoc);
       res.send(result);
     });
     // ? cancel admin
