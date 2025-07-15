@@ -8,7 +8,7 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173","https://dev-forum-by-ubaid.netlify.app"],
     credentials: true,
   })
 );
@@ -40,6 +40,32 @@ async function run() {
       const users = await usersCollection.find(query).toArray();
       res.send(users);
     });
+
+    app.get("/getPosts", async (req, res) => {
+      try {
+        const search = req.query.search || "";
+        const page = parseInt(req.query.page) || 0;
+        const size = 5;
+    
+        let query = {};
+        if (search) {
+          query = { tag: { $regex: search, $options: "i" } };
+        }
+    
+        const posts = await postsCollection
+          .find(query)
+          .sort({ _id: -1 })
+          .skip(page * size)
+          .limit(size)
+          .toArray();
+    
+        res.send(posts);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Internal Server Error" });
+      }
+    });
+
     //? get posts
     app.get("/posts", async (req, res) => {
       const users = await postsCollection.find().toArray();
@@ -62,18 +88,7 @@ async function run() {
       const count = await postsCollection.estimatedDocumentCount();
       res.send(count);
     });
-    //? get posts for pagination
-    app.get("/pagination", async (req, res) => {
-      const page = parseInt(req.query.page);
-      const size = 5;
-      const result = await postsCollection
-        .find()
-        .sort({ _id: -1 })
-        .skip(page * size)
-        .limit(size)
-        .toArray();
-      res.send(result);
-    });
+    
     //? get tags
     app.get("/tags", async (req, res) => {
       const result = await tagCollection.find().toArray();
@@ -100,13 +115,18 @@ async function run() {
       const user = await usersCollection.findOne(query);
       res.send(user);
     });
+    app.get("/role/:email", async (req, res) => {
+      const query = { email: req.params.email };
+      const {role} = await usersCollection.findOne(query);
+      res.send(role);
+    });
     //? get posts via email
     app.get("/posts/:email", async (req, res) => {
       const query = { email: req.params.email };
       const result = await postsCollection.find(query).toArray();
       res.send(result);
     });
-    //? get recents post for user
+    //? get recent posts for user
     app.get("/profile/:email", async (req, res) => {
       const query = { email: req.params.email };
       const result = await postsCollection
@@ -213,9 +233,7 @@ async function run() {
       const result = await postsCollection.deleteOne(query);
       res.send(result);
     });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+  
   } finally {
   }
 }
