@@ -8,7 +8,7 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 app.use(
   cors({
-    origin: ["http://localhost:5173","https://dev-forum-by-ubaid.netlify.app"],
+    origin: ["http://localhost:5173", "https://dev-forum-by-ubaid.netlify.app"],
     credentials: true,
   })
 );
@@ -40,26 +40,40 @@ async function run() {
       const users = await usersCollection.find(query).toArray();
       res.send(users);
     });
+    // ? get posts by search
 
     app.get("/getPosts", async (req, res) => {
       try {
         const search = req.query.search || "";
         const page = parseInt(req.query.page) || 0;
         const size = 5;
-    
-        let query = {};
+        const sortBy = req.query.sortBy || "latest";
+
+        let matchQuery = {};
         if (search) {
-          query = { tag: { $regex: search, $options: "i" } };
+          matchQuery = { tag: { $regex: search, $options: "i" } };
         }
-    
-        const posts = await postsCollection
-          .find(query)
-          .sort({ _id: -1 })
-          .skip(page * size)
-          .limit(size)
-          .toArray();
-    
-        res.send(posts);
+
+        let pipeline = [{ $match: matchQuery }];
+
+        if (sortBy === "popularity") {
+          pipeline.push({
+            $addFields: {
+              voteDifference: { $subtract: ["$UpVote", "$DownVote"] },
+            },
+          });
+          pipeline.push({ $sort: { voteDifference: -1 } });
+        } else {
+          pipeline.push({ $sort: { _id: -1 } });
+        }
+
+        pipeline.push({ $skip: page * size });
+        pipeline.push({ $limit: size });
+
+        const posts = await postsCollection.aggregate(pipeline).toArray();
+        const count = await postsCollection.countDocuments(matchQuery);
+
+        res.send({ posts, count });
       } catch (error) {
         console.error(error);
         res.status(500).send({ error: "Internal Server Error" });
@@ -83,23 +97,18 @@ async function run() {
       const result = await postsCollection.findOne(query);
       res.send(result);
     });
-    //? get posts count
-    app.get("/postsCount", async (req, res) => {
-      const count = await postsCollection.estimatedDocumentCount();
-      res.send(count);
-    });
-    
+
     //? get tags
     app.get("/tags", async (req, res) => {
       const result = await tagCollection.find().toArray();
       res.send(result);
     });
-     //? get all comment for a post
-     app.get("/comments/:postId", async (req, res) => {
+    //? get all comment for a post
+    app.get("/comments/:postId", async (req, res) => {
       const postId = req.params.postId;
       const query = { postId: postId };
       const comments = await commentsCollection
-        .find(query)        
+        .find(query)
         .sort({ createdAt: 1 })
         .toArray();
       res.send(comments);
@@ -117,7 +126,7 @@ async function run() {
     });
     app.get("/role/:email", async (req, res) => {
       const query = { email: req.params.email };
-      const {role} = await usersCollection.findOne(query);
+      const { role } = await usersCollection.findOne(query);
       res.send(role);
     });
     //? get posts via email
@@ -233,7 +242,6 @@ async function run() {
       const result = await postsCollection.deleteOne(query);
       res.send(result);
     });
-  
   } finally {
   }
 }
