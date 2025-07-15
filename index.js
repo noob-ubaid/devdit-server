@@ -151,6 +151,14 @@ async function run() {
         .toArray();
       res.send(result);
     });
+    app.get("/bannerTags", async (req, res) => {
+      const result = await tagCollection
+        .find()
+        .sort({ _id: -1 })
+        .limit(3)
+        .toArray();
+      res.send(result);
+    });
     //? create post
     app.post("/add-post", async (req, res) => {
       const data = req.body;
