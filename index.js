@@ -30,6 +30,7 @@ async function run() {
     const announcementCollection = dataBase.collection("announcement");
     const tagCollection = dataBase.collection("tags");
     const commentsCollection = dataBase.collection("comments");
+    const reportsCollection = dataBase.collection("reports");
     //? manage users
     app.get("/users", async (req, res) => {
       const search = req.query.search;
@@ -199,6 +200,64 @@ async function run() {
       const result = await usersCollection.updateOne(query, updateDoc);
       res.send(result);
     });
+    // ? report comment
+    // PATCH: report a comment
+    app.patch("/reportComment/:id", async (req, res) => {
+      const commentId = req.params.id;
+      const { feedback, userEmail } = req.body;
+
+      try {
+        const query = { _id: new ObjectId(commentId) };
+        const comment = await commentsCollection.findOne(query);
+
+        if (!comment) {
+          return res.status(404).send({ message: "Comment not found." });
+        }
+
+        if (comment.reportedBy && comment.reportedBy.includes(userEmail)) {
+          return res
+            .status(400)
+            .send({ message: "You have already reported this comment." });
+        }
+
+        // Update the comment document
+        const updateDoc = {
+          $set: {
+            isReported: true,
+            feedback: feedback,
+            reportedAt: new Date(),
+          },
+          $addToSet: {
+            reportedBy: userEmail,
+          },
+        };
+        await commentsCollection.updateOne(query, updateDoc);
+        const reportData = {
+          commentId: commentId,
+          postId: comment.postId || null,
+          commenterEmail: comment.commenterEmail || null,
+          commenterName: comment.commenterName || null,
+          reporterEmail: userEmail,
+          feedback: feedback,
+          reportedAt: new Date(),
+          commentText: comment.comment || "",
+          status: "pending",
+        };
+        await reportsCollection.insertOne(reportData);
+
+        res.send({
+          message: "Reported successfully.",
+        });
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .send({
+            message: "Something went wrong while reporting the comment.",
+          });
+      }
+    });
+
     // ? upvote
     app.patch("/like/:id", async (req, res) => {
       const id = req.params.id;
