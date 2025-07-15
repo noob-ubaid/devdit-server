@@ -41,6 +41,11 @@ async function run() {
       const users = await usersCollection.find(query).toArray();
       res.send(users);
     });
+    //? get all reports
+    app.get("/reports", async (req, res) => {
+      const reports = await reportsCollection.find().toArray();
+      res.send(reports);
+    });
     // ? get posts by search
 
     app.get("/getPosts", async (req, res) => {
@@ -241,7 +246,7 @@ async function run() {
           feedback: feedback,
           reportedAt: new Date(),
           commentText: comment.comment || "",
-          status: "pending",
+          status: "Pending",
         };
         await reportsCollection.insertOne(reportData);
 
@@ -250,12 +255,26 @@ async function run() {
         });
       } catch (error) {
         console.error(error);
-        res
-          .status(500)
-          .send({
-            message: "Something went wrong while reporting the comment.",
-          });
+        res.status(500).send({
+          message: "Something went wrong while reporting the comment.",
+        });
       }
+    });
+    //? 🚩 Admin delete reported comment
+    app.delete("/deleteReportedComment/:reportId", async (req, res) => {
+      const reportId = req.params.reportId;
+      const reportQuery = { _id: new ObjectId(reportId) };
+      const report = await reportsCollection.findOne(reportQuery);
+      const commentId = report.commentId;
+      const commentQuery = { _id: new ObjectId(commentId) };
+      const deleteResult = await commentsCollection.deleteOne(commentQuery);
+      const updateReport = await reportsCollection.updateOne(reportQuery, {
+        $set: {
+          status: "Resolved",
+          resolvedAt: new Date(),
+        },
+      });
+      res.send(updateReport);
     });
 
     // ? upvote
