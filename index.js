@@ -6,6 +6,7 @@ const port = process.env.PORT || 3000;
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
+
 app.use(
   cors({
     origin: ["http://localhost:5173", "https://dev-forum-by-ubaid.netlify.app"],
@@ -14,6 +15,7 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@ubaid-database.njfi7n5.mongodb.net/?retryWrites=true&w=majority&appName=Ubaid-Database`;
 const client = new MongoClient(uri, {
   serverApi: {
@@ -22,6 +24,17 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+const verifyToken = async (req, res, next) => {
+  const token = req?.cookies?.token;
+  if (!token) return res.status(401).send({ message: "unauthorized access" });
+  jwt.verify(token, process.env.JWT_SECRET, (error, decoded) => {
+    if (error) return res.status(401).send({ message: "unauthorized access" });
+    req.decoded = decoded;
+    next();
+  });
+};
+
 async function run() {
   try {
     const dataBase = client.db("Forum");
@@ -31,8 +44,22 @@ async function run() {
     const tagCollection = dataBase.collection("tags");
     const commentsCollection = dataBase.collection("comments");
     const reportsCollection = dataBase.collection("reports");
+
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: "7d" });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+        })
+        .send({ success: true });
+    });
+
     //? manage users
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, async (req, res) => {
       const search = req.query.search;
       let query = {};
       if (search) {
@@ -42,12 +69,11 @@ async function run() {
       res.send(users);
     });
     //? get all reports
-    app.get("/reports", async (req, res) => {
+    app.get("/reports", verifyToken, async (req, res) => {
       const reports = await reportsCollection.find().toArray();
       res.send(reports);
     });
     // ? get posts by search
-
     app.get("/getPosts", async (req, res) => {
       try {
         const search = req.query.search || "";
@@ -85,14 +111,13 @@ async function run() {
         res.status(500).send({ error: "Internal Server Error" });
       }
     });
-
     //? get posts
     app.get("/posts", async (req, res) => {
       const users = await postsCollection.find().toArray();
       res.send(users);
     });
     //? get total comments
-    app.get("/allComments", async (req, res) => {
+    app.get("/allComments", verifyToken, async (req, res) => {
       const users = await commentsCollection.find().toArray();
       res.send(users);
     });
@@ -103,7 +128,6 @@ async function run() {
       const result = await postsCollection.findOne(query);
       res.send(result);
     });
-
     //? get tags
     app.get("/tags", async (req, res) => {
       const result = await tagCollection.find().toArray();
@@ -125,24 +149,24 @@ async function run() {
       res.send(users);
     });
     //? get user by email
-    app.get("/users/:email", async (req, res) => {
+    app.get("/users/:email", verifyToken, async (req, res) => {
       const query = { email: req.params.email };
       const user = await usersCollection.findOne(query);
       res.send(user);
     });
-    app.get("/role/:email", async (req, res) => {
+    app.get("/role/:email", verifyToken, async (req, res) => {
       const query = { email: req.params.email };
       const { role } = await usersCollection.findOne(query);
       res.send(role);
     });
     //? get posts via email
-    app.get("/posts/:email", async (req, res) => {
+    app.get("/posts/:email", verifyToken, async (req, res) => {
       const query = { email: req.params.email };
       const result = await postsCollection.find(query).toArray();
       res.send(result);
     });
     //? get recent posts for user
-    app.get("/profile/:email", async (req, res) => {
+    app.get("/profile/:email", verifyToken, async (req, res) => {
       const query = { email: req.params.email };
       const result = await postsCollection
         .find(query)
@@ -160,25 +184,25 @@ async function run() {
       res.send(result);
     });
     //? create post
-    app.post("/add-post", async (req, res) => {
+    app.post("/add-post", verifyToken, async (req, res) => {
       const data = req.body;
       const result = await postsCollection.insertOne(data);
       res.send(result);
     });
     //? tags post
-    app.post("/tags", async (req, res) => {
+    app.post("/tags", verifyToken, async (req, res) => {
       const data = req.body;
       const result = await tagCollection.insertOne(data);
       res.send(result);
     });
     //? make announcement
-    app.post("/announcement", async (req, res) => {
+    app.post("/announcement", verifyToken, async (req, res) => {
       const data = req.body;
       const result = await announcementCollection.insertOne(data);
       res.send(result);
     });
     //? make comments
-    app.post("/comments", async (req, res) => {
+    app.post("/comments", verifyToken, async (req, res) => {
       const data = req.body;
       data.createdAt = new Date();
       data.isReported = false;
@@ -202,7 +226,7 @@ async function run() {
       res.send(result);
     });
     //? make admin
-    app.patch("/makeAdmin/:id", async (req, res) => {
+    app.patch("/makeAdmin/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const updateDoc = {
@@ -214,8 +238,7 @@ async function run() {
       res.send(result);
     });
     // ? report comment
-    // PATCH: report a comment
-    app.patch("/reportComment/:id", async (req, res) => {
+    app.patch("/reportComment/:id", verifyToken, async (req, res) => {
       const commentId = req.params.id;
       const { feedback, userEmail } = req.body;
 
@@ -233,7 +256,6 @@ async function run() {
             .send({ message: "You have already reported this comment." });
         }
 
-        // Update the comment document
         const updateDoc = {
           $set: {
             isReported: true,
@@ -269,7 +291,7 @@ async function run() {
       }
     });
     //? 🚩 Admin delete reported comment
-    app.delete("/deleteReportedComment/:reportId", async (req, res) => {
+    app.delete("/deleteReportedComment/:reportId", verifyToken, async (req, res) => {
       const reportId = req.params.reportId;
       const reportQuery = { _id: new ObjectId(reportId) };
       const report = await reportsCollection.findOne(reportQuery);
@@ -284,9 +306,8 @@ async function run() {
       });
       res.send(updateReport);
     });
-
     // ? upvote
-    app.patch("/like/:id", async (req, res) => {
+    app.patch("/like/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const updateDoc = {
@@ -298,7 +319,7 @@ async function run() {
       res.send(result);
     });
     // ? downvote
-    app.patch("/dislike/:id", async (req, res) => {
+    app.patch("/dislike/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const updateDoc = {
@@ -310,7 +331,7 @@ async function run() {
       res.send(result);
     });
     // ? cancel admin
-    app.patch("/cancelAdmin/:id", async (req, res) => {
+    app.patch("/cancelAdmin/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const updateDoc = {
@@ -322,7 +343,7 @@ async function run() {
       res.send(result);
     });
     //? delete post
-    app.delete("/post/:id", async (req, res) => {
+    app.delete("/post/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await postsCollection.deleteOne(query);
