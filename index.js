@@ -44,7 +44,7 @@ async function run() {
     const tagCollection = dataBase.collection("tags");
     const commentsCollection = dataBase.collection("comments");
     const reportsCollection = dataBase.collection("reports");
-
+    // ? jwt
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: "7d" });
@@ -57,16 +57,26 @@ async function run() {
         })
         .send({ success: true });
     });
-
+    // ? deleted token on logout
+    app.post("/logout", (req, res) => {
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+      });
+      res.send({ success: true, message: "Logged out successfully" });
+    });
     //? manage users
     app.get("/users", verifyToken, async (req, res) => {
       const search = req.query.search;
+      const page = req.query.page || 0
       let query = {};
       if (search) {
         query = { name: { $regex: search, $options: "i" } };
       }
-      const users = await usersCollection.find(query).toArray();
-      res.send(users);
+      const users = await usersCollection.find(query).skip(page * 5).limit(5).toArray();
+      const count = await usersCollection.countDocuments(query);
+      res.send({users,count});
     });
     //? get all reports
     app.get("/reports", verifyToken, async (req, res) => {
@@ -291,21 +301,25 @@ async function run() {
       }
     });
     //? 🚩 Admin delete reported comment
-    app.delete("/deleteReportedComment/:reportId", verifyToken, async (req, res) => {
-      const reportId = req.params.reportId;
-      const reportQuery = { _id: new ObjectId(reportId) };
-      const report = await reportsCollection.findOne(reportQuery);
-      const commentId = report.commentId;
-      const commentQuery = { _id: new ObjectId(commentId) };
-      const deleteResult = await commentsCollection.deleteOne(commentQuery);
-      const updateReport = await reportsCollection.updateOne(reportQuery, {
-        $set: {
-          status: "Resolved",
-          resolvedAt: new Date(),
-        },
-      });
-      res.send(updateReport);
-    });
+    app.delete(
+      "/deleteReportedComment/:reportId",
+      verifyToken,
+      async (req, res) => {
+        const reportId = req.params.reportId;
+        const reportQuery = { _id: new ObjectId(reportId) };
+        const report = await reportsCollection.findOne(reportQuery);
+        const commentId = report.commentId;
+        const commentQuery = { _id: new ObjectId(commentId) };
+        const deleteResult = await commentsCollection.deleteOne(commentQuery);
+        const updateReport = await reportsCollection.updateOne(reportQuery, {
+          $set: {
+            status: "Resolved",
+            resolvedAt: new Date(),
+          },
+        });
+        res.send(updateReport);
+      }
+    );
     // ? upvote
     app.patch("/like/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
