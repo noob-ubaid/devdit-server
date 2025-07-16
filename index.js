@@ -80,8 +80,10 @@ async function run() {
     });
     //? get all reports
     app.get("/reports", verifyToken, async (req, res) => {
-      const reports = await reportsCollection.find().toArray();
-      res.send(reports);
+      const page = req.query.page
+      const reports = await reportsCollection.find().skip(page * 5).limit(5).toArray();
+      const count = await reportsCollection.countDocuments()
+      res.send({reports,count});
     });
     // ? get posts by search
     app.get("/getPosts", async (req, res) => {
