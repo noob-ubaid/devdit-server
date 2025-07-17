@@ -15,7 +15,7 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
-
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@ubaid-database.njfi7n5.mongodb.net/?retryWrites=true&w=majority&appName=Ubaid-Database`;
 const client = new MongoClient(uri, {
   serverApi: {
@@ -69,21 +69,29 @@ async function run() {
     //? manage users
     app.get("/users", verifyToken, async (req, res) => {
       const search = req.query.search;
-      const page = req.query.page || 0
+      const page = req.query.page || 0;
       let query = {};
       if (search) {
         query = { name: { $regex: search, $options: "i" } };
       }
-      const users = await usersCollection.find(query).skip(page * 5).limit(5).toArray();
+      const users = await usersCollection
+        .find(query)
+        .skip(page * 5)
+        .limit(5)
+        .toArray();
       const count = await usersCollection.countDocuments(query);
-      res.send({users,count});
+      res.send({ users, count });
     });
     //? get all reports
     app.get("/reports", verifyToken, async (req, res) => {
-      const page = req.query.page
-      const reports = await reportsCollection.find().skip(page * 5).limit(5).toArray();
-      const count = await reportsCollection.countDocuments()
-      res.send({reports,count});
+      const page = req.query.page;
+      const reports = await reportsCollection
+        .find()
+        .skip(page * 5)
+        .limit(5)
+        .toArray();
+      const count = await reportsCollection.countDocuments();
+      res.send({ reports, count });
     });
     // ? get posts by search
     app.get("/getPosts", async (req, res) => {
@@ -126,6 +134,11 @@ async function run() {
     //? get posts
     app.get("/posts", async (req, res) => {
       const users = await postsCollection.find().toArray();
+      res.send(users);
+    });
+    //? get all users for admin
+    app.get("/allUsers", async (req, res) => {
+      const users = await usersCollection.find().toArray();
       res.send(users);
     });
     //? get total comments
@@ -174,8 +187,14 @@ async function run() {
     //? get posts via email
     app.get("/posts/:email", verifyToken, async (req, res) => {
       const query = { email: req.params.email };
-      const result = await postsCollection.find(query).toArray();
-      res.send(result);
+      const page = req.query.page;
+      const result = await postsCollection
+        .find(query)
+        .skip(page * 5)
+        .limit(5)
+        .toArray();
+      const count = await postsCollection.countDocuments(query);
+      res.send({ result, count });
     });
     //? get recent posts for user
     app.get("/profile/:email", verifyToken, async (req, res) => {
@@ -223,6 +242,22 @@ async function run() {
       const result = await commentsCollection.insertOne(data);
       res.send(result);
     });
+    app.post("/create-payment-intent", verifyToken, async (req, res) => {
+      const { amount } = req.body;
+      if (!amount || amount <= 0) {
+        return res.status(400).send({ message: "Invalid payment amount" });
+      }
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100),
+        currency: "usd",
+        payment_method_types: ["card"],
+        metadata: {
+          userEmail: req.decoded.email,
+        },
+      });
+
+      res.send({ clientSecret: paymentIntent.client_secret });
+    });
     //? user store in the db
     app.post("/user", async (req, res) => {
       const data = req.body;
@@ -244,6 +279,18 @@ async function run() {
       const updateDoc = {
         $set: {
           role: "admin",
+        },
+      };
+      const result = await usersCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
+    //? become member
+    app.patch("/becomeMember/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const updateDoc = {
+        $set: {
+          role: "member",
         },
       };
       const result = await usersCollection.updateOne(query, updateDoc);
