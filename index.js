@@ -133,7 +133,13 @@ async function run() {
     });
     //? get posts
     app.get("/posts", async (req, res) => {
-      const users = await postsCollection.find().toArray();
+      const tag = req.query.tag
+      let users;
+      if(tag){
+        users = await postsCollection.find({ tag }).toArray();
+      } else {
+        users = await postsCollection.find().toArray();
+      }
       res.send(users);
     });
     //? get all users for admin
@@ -155,7 +161,7 @@ async function run() {
     });
     //? get tags
     app.get("/tags", async (req, res) => {
-      const result = await tagCollection.find().toArray();
+      result = await tagCollection.find().toArray();
       res.send(result);
     });
     //? get all comment for a post
