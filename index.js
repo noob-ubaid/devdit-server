@@ -44,6 +44,7 @@ async function run() {
     const tagCollection = dataBase.collection("tags");
     const commentsCollection = dataBase.collection("comments");
     const reportsCollection = dataBase.collection("reports");
+    const userInfo = dataBase.collection("info");
     // ? jwt
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -156,6 +157,11 @@ async function run() {
       const users = await usersCollection.find().toArray();
       res.send(users);
     });
+    app.get("/info/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = await userInfo.findOne({ email: email });
+      res.send(user);
+    });
     //? get total comments
     app.get("/allComments", verifyToken, async (req, res) => {
       const users = await commentsCollection.find().toArray();
@@ -233,6 +239,12 @@ async function run() {
     app.post("/add-post", verifyToken, async (req, res) => {
       const data = req.body;
       const result = await postsCollection.insertOne(data);
+      res.send(result);
+    });
+    //? create post
+    app.post("/info", verifyToken, async (req, res) => {
+      const data = req.body;
+      const result = await userInfo.insertOne(data);
       res.send(result);
     });
     //? tags post
