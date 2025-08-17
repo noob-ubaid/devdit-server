@@ -142,6 +142,15 @@ async function run() {
       }
       res.send(users);
     });
+    //? get posts using sorting
+    app.get("/allPosts", async (req, res) => {
+      const sort = req.query.sort || 'asc'
+      let sortQuery = {};
+      if (sort === "asc") sortQuery = { UpVote: -1 };
+      if (sort === "desc") sortQuery = { UpVote: 1 };
+      const users = await postsCollection.find().sort(sortQuery).toArray();
+      res.send(users);
+    });
     //? get all users for admin
     app.get("/allUsers", async (req, res) => {
       const users = await usersCollection.find().toArray();
